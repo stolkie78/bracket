@@ -14,6 +14,9 @@ class StageType(EnumAutoStr):
     ROUND_ROBIN = auto()
     SINGLE_ELIMINATION = auto()
     SWISS = auto()
+    KING_OF_THE_COURT = auto()
+    KING_OF_THE_BEACH = auto()
+    KING_OF_THE_COURT_TOURNAMENT = auto()
 
     @property
     def supports_dynamic_number_of_rounds(self) -> bool:
