@@ -10,7 +10,9 @@ from bracket.config import config
 from bracket.database import database
 from bracket.logger import get_logger
 from bracket.models.db.account import UserAccountType
+from bracket.models.db.tournament import Tournament
 from bracket.models.db.user import UserInsertable
+from bracket.sql.tournaments import sql_get_tournaments
 from bracket.sql.users import (
     check_whether_email_is_in_use,
     create_user,
@@ -85,8 +87,41 @@ async def register_user(email: str, password: str, name: str) -> None:
     logger.info(f"Created user with id: {user_created.id}")
 
 
+@click.command()
+@click.option(
+    "--status",
+    type=click.Choice(["ALL", "OPEN", "ARCHIVED"], case_sensitive=False),
+    default="ALL",
+    help="Filter tournaments by status.",
+)
+@click.option("--club-id", type=int, default=None, help="Only show tournaments for a club")
+@run_async
+async def list_tournaments(status: str, club_id: int | None) -> None:
+    """List tournaments in the database."""
+    query = "SELECT * FROM tournaments"
+    clauses: list[str] = []
+    params: dict[str, int] = {}
+    if club_id is not None:
+        clauses.append("club_id = :club_id")
+        params["club_id"] = club_id
+    if status.upper() == "OPEN":
+        clauses.append("status = 'OPEN'")
+    elif status.upper() == "ARCHIVED":
+        clauses.append("status = 'ARCHIVED'")
+    if clauses:
+        query += " WHERE " + " AND ".join(clauses)
+    tournaments = [
+        Tournament.model_validate(row) for row in await database.fetch_all(query, params)
+    ]
+    for tournament in tournaments:
+        logger.info(
+            f"{tournament.id}: {tournament.name} (club {tournament.club_id}) - {tournament.status}"
+        )
+
+
 if __name__ == "__main__":
     cli.add_command(create_dev_db)
     cli.add_command(hash_password_cmd)
     cli.add_command(register_user)
+    cli.add_command(list_tournaments)
     cli()
